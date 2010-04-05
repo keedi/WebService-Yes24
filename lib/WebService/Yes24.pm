@@ -27,9 +27,10 @@ use Web::Scraper;
         say $item->{date};
         say $item->{price};
         say $item->{mileage};
+        say $item->{link};
     }
     
-    my $total = $yes24->search( "Perl" );
+    my $total = $yes24->search( "Learning Perl" );
     my $last_page = ($total / $yes24->page_size) + 1;
     for my $page ( 1 .. $last_page ) {
         for my $result ( @{ $yes24->result($page) } ) {
@@ -40,6 +41,7 @@ use Web::Scraper;
             say $item->{date};
             say $item->{price};
             say $item->{mileage};
+            say $item->{link};
         }
     }
  
@@ -47,19 +49,20 @@ use Web::Scraper;
 
 Yes24 (L<http://www.yes24.com>) is a e-commerce company in South Korea.
 They mainly sell books, CD/DVDs, gifts and etc like Amazon.
-This module provide API to get information from Yes24.
+This module provides APIs to get information from Yes24.
 
 =head1 CAUTION
 
 In fact, Yes24 doesn't support API.
-So, implementation of this module is based on web scraping,
-which is a very fragile approach and very slow.
-Please remember, one day this module will not work!
+So, implementation of this module is based on the web scraping,
+which is the very fragile approach and very slow.
+Please remember, one day this module might not work!
 If you find the such situation, let me know. :-)
 
 =cut
 
 use common::sense;
+use WebService::Yes24::Item;
 
 =attr category
 
@@ -209,7 +212,7 @@ has '_query' => (
 
     my $yes24 = WebService::Yes24->new;
     
-This method will create and return WebService::Yes24 object.
+This method will create and return L<WebService::Yes24> object.
 
 If any parameter was not given, the default values are used:
 
@@ -237,7 +240,7 @@ sub _get_page {
 
 =method search
 
-    my $total = $yes24->search('Perl');
+    my $total = $yes24->search('Learning Perl');
 
 This method will start search from Yes24.
 You have to specify the search keyword as the parameter.
@@ -289,7 +292,8 @@ sub result {
     my $scraper = scraper {
         process 'table#tblProductList > tr', 'items[]' => scraper {
             process 'td > table > tr > td > a > img', 'cover'   => '@src';
-            process 'td > a',                         'title[]' => 'TEXT';
+            process 'td > a > b',                     title     => 'TEXT';
+            process 'td > a',                         link      => '@href';
             process 'span.info',                      sub_title => 'TEXT';
             process 'span.priceB',                    price     => 'TEXT';
             process 'span.price',                     mileage   => 'TEXT';
@@ -316,13 +320,12 @@ sub result {
     my @results;
     for my $item ( @{ $res->{items} } ) {
         next unless $item->{title};
-
-        my $title = join( q{ }, @{ $item->{title} }, $item->{sub_title} );
+        next unless $item->{link};
 
         map {
             s/^\s+|\s+$//g
         } (
-            $title,
+            $item->{title},
             $item->{cover},
             $item->{sub_title},
             $item->{info}{author},
@@ -336,17 +339,20 @@ sub result {
         $item->{mileage}    =~ s/\D//g;
         $item->{info}{date} =~ s/^.*?(\d{4})\D+(\d{2}).*$/sprintf('%04d-%02d', $1, $2)/ge;
 
-        my $remap_item = {
+        my $title = join( q{ }, $item->{title}, $item->{sub_title} );
+
+        my $result_item = WebService::Yes24::Item->new(
             title     => $title,
-            cover     => $item->{cover},
+            cover     => $item->{cover}->as_string,
             author    => $item->{info}{author},
             publisher => $item->{info}{publisher},
             date      => $item->{info}{date},
             price     => $item->{price},
             mileage   => $item->{mileage},
-        };
+            link      => $item->{link}->as_string,
+        );
 
-        push @results, $remap_item;
+        push @results, $result_item;
     }
 
     return \@results;

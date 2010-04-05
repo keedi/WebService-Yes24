@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+    - Use WebService::Yes24::Item for search result
+    - Add 'link' attributes
 
 0.100890  2010-03-30 19:24:50 Asia/Seoul
     First release
