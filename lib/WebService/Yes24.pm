@@ -266,7 +266,7 @@ sub search {
 
 =method result
 
-    my @items   = @{ $yes24->result };
+    my @items = @{ $yes24->result };
 
 This method will return the items of the search result.
 
